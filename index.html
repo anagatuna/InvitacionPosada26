@@ -147,6 +147,7 @@
       <h2 class="section__title" id="t-musica">Pon tu canción en la fila</h2>
       <p class="section__lead">Busca la canción que no puede faltar y agrégala a la playlist de la posada.</p>
 
+      <div class="music">
       <form class="songs card" id="song-form" autocomplete="off" role="search">
         <label class="sr-only" for="song-q">Buscar canción o artista</label>
         <div class="songs__bar">
@@ -161,7 +162,29 @@
         <p class="songs__status" id="song-status" role="status" aria-live="polite"></p>
         <ul class="songs__list" id="song-results"></ul>
       </form>
-      <p class="center"><a class="link" id="playlist-link" href="#" target="_blank" rel="noopener" hidden>Escuchar la playlist en Spotify ↗</a></p>
+
+      <!-- Reproductor estilo Spotify: se llena desde la Edge Function (action: "list") -->
+      <div class="spx" id="spx" hidden>
+        <div class="spx__head">
+          <img class="spx__cover" id="spx-cover" alt="" width="96" height="96">
+          <div class="spx__meta">
+            <h3 class="spx__title" id="spx-title">Playlist</h3>
+            <p class="spx__owner" id="spx-owner"></p>
+            <p class="spx__count"><span class="spx__live" aria-hidden="true"></span><span id="spx-count"></span></p>
+          </div>
+          <a class="spx__logo" id="spx-logo" href="#" target="_blank" rel="noopener" aria-label="Abrir en Spotify">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22zm5.05 15.87a.69.69 0 0 1-.94.23c-2.58-1.58-5.83-1.93-9.66-1.06a.69.69 0 1 1-.3-1.34c4.19-.96 7.79-.55 10.67 1.22.33.2.43.63.23.95zm1.35-3a.86.86 0 0 1-1.18.28c-2.95-1.81-7.45-2.34-10.94-1.28a.86.86 0 1 1-.5-1.65c3.99-1.21 8.95-.62 12.34 1.46.4.25.53.78.28 1.19zm.12-3.12C14.98 8.65 9.13 8.46 5.75 9.48a1.03 1.03 0 1 1-.6-1.97c3.88-1.18 10.34-.95 14.41 1.46a1.03 1.03 0 1 1-1.04 1.78z"/></svg>
+          </a>
+        </div>
+        <div class="spx__bar">
+          <a class="spx__open" id="spx-open" href="#" target="_blank" rel="noopener">Abrir en Spotify</a>
+          <a class="spx__play" id="spx-play" href="#" target="_blank" rel="noopener" aria-label="Escuchar la playlist en Spotify">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a.6.6 0 0 0 .9.5l10.4-6.5a.6.6 0 0 0 0-1L8.9 5a.6.6 0 0 0-.9.5z"/></svg>
+          </a>
+        </div>
+        <ol class="spx__list" id="spx-list" aria-label="Canciones en la playlist"></ol>
+      </div>
+      </div>
     </section>
 
     <!-- ============ RSVP ============ -->

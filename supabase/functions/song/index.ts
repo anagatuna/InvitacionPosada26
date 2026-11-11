@@ -6,6 +6,7 @@
 //   { action: "info" }                    → { playlistUrl }
 //   { action: "search", q }               → { tracks: [...] }
 //   { action: "add", uri: "spotify:track:…" } → { ok, duplicate }
+//   { action: "list" }                    → { name, owner, image, url, total, tracks: [...] }
 
 import { clientIp, guard, json, rateLimit, readJson, str } from "../_shared/http.ts";
 
@@ -80,6 +81,52 @@ async function alreadyInPlaylist(cfg: NonNullable<ReturnType<typeof env>>, uri: 
   return false;
 }
 
+// ---- Lista de la playlist (para mostrarla en la invitación) ----
+const LIST_MAX = 50;
+let listCache: { at: number; data: unknown } | null = null;
+
+async function playlistSnapshot(cfg: NonNullable<ReturnType<typeof env>>) {
+  if (listCache && Date.now() - listCache.at < 8_000) return listCache.data;
+  const id = encodeURIComponent(cfg.playlist);
+
+  const metaRes = await sp(cfg, `/playlists/${id}?market=MX`);
+  if (!metaRes.ok) throw new Error(`meta:${metaRes.status}`);
+  const meta = await metaRes.json();
+  const total: number = (meta.items ?? meta.tracks)?.total ?? 0;
+
+  // Leemos las últimas LIST_MAX canciones (las más recientes)
+  const offset = Math.max(0, total - LIST_MAX);
+  const itemsRes = await sp(cfg, `/playlists/${id}/items?limit=${LIST_MAX}&offset=${offset}&market=MX`);
+  if (!itemsRes.ok) throw new Error(`items:${itemsRes.status}`);
+  const page = await itemsRes.json();
+
+  const tracks = ((page.items ?? []) as { added_at?: string; item?: SpTrack; track?: SpTrack }[])
+    .map((it) => ({ t: it.item ?? it.track, added: it.added_at ?? "" }))
+    .filter((x) => x.t && x.t.uri && x.t.uri.startsWith("spotify:track:"))
+    .map(({ t, added }) => ({
+      uri: t!.uri,
+      id: t!.uri.split(":").pop(),
+      name: t!.name,
+      artists: (t!.artists ?? []).map((a) => a.name).join(", "),
+      image: pickImage(t!.album?.images),
+      duration: t!.duration_ms ?? 0,
+      explicit: !!t!.explicit,
+      added,
+    }))
+    .reverse(); // más recientes primero
+
+  const data = {
+    name: meta.name ?? "Playlist",
+    owner: meta.owner?.display_name ?? "",
+    image: (meta.images ?? [])[0]?.url ?? "",
+    url: `https://open.spotify.com/playlist/${id}`,
+    total,
+    tracks,
+  };
+  listCache = { at: Date.now(), data };
+  return data;
+}
+
 Deno.serve(async (req) => {
   const blocked = guard(req);
   if (blocked) return blocked;
@@ -97,6 +144,17 @@ Deno.serve(async (req) => {
 
   const ip = clientIp(req);
   const honeypot = str(body.website, 200) !== "";
+
+  if (action === "list") {
+    if (!rateLimit(`list:${ip}`, 30, 60_000)) return json(req, 429, { error: "Demasiadas consultas." });
+    if (!cfg) return json(req, 500, { error: "Servicio no configurado." });
+    try {
+      return json(req, 200, await playlistSnapshot(cfg));
+    } catch (e) {
+      console.error("list error", e);
+      return json(req, 502, { error: "Spotify no respondió." });
+    }
+  }
 
   if (action === "search") {
     if (!rateLimit(`search:${ip}`, 40, 60_000)) return json(req, 429, { error: "Demasiadas búsquedas." });
@@ -146,6 +204,7 @@ Deno.serve(async (req) => {
         console.error("add", r.status, await r.text());
         return json(req, 502, { error: "No se pudo agregar." });
       }
+      listCache = null; // que la lista muestre la canción nueva de inmediato
       return json(req, 200, { ok: true, duplicate: false });
     } catch (e) {
       console.error("add error", e);

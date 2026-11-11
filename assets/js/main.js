@@ -204,17 +204,12 @@
     var hp = $("#song-web");
     var status = $("#song-status");
     var list = $("#song-results");
-    var link = $("#playlist-link");
     var timer = null, seq = 0;
 
     function setStatus(text, kind) {
       status.textContent = text || "";
       status.className = "songs__status" + (kind ? " " + kind : "");
     }
-
-    api("song", { action: "info" }).then(function (d) {
-      if (d.playlistUrl) { link.href = d.playlistUrl; link.hidden = false; }
-    }).catch(function () { /* sin link si aún no hay configuración */ });
 
     function render(tracks) {
       list.innerHTML = "";
@@ -256,6 +251,7 @@
       api("song", { action: "add", uri: t.uri, website: hp.value }).then(function (d) {
         btn.textContent = d.duplicate ? "Ya está" : "Agregada ✓";
         btn.classList.add("is-done");
+        document.dispatchEvent(new CustomEvent("playlist:changed", { detail: { uri: t.uri } }));
         setStatus(d.duplicate ? "“" + t.name + "” ya estaba en la playlist." : "¡Listo! “" + t.name + "” se agregó a la fila.", "ok");
       }).catch(function (e) {
         btn.disabled = false;
@@ -277,6 +273,91 @@
       if (q.length >= 2) search(q);
       input.blur();
     });
+  })();
+
+  /* ---------------- Playlist en vivo (estilo reproductor de Spotify) ---------------- */
+  (function playlist() {
+    var box = $("#spx");
+    if (!box) return;
+    var listEl = $("#spx-list");
+    var REFRESH_MS = 30000;
+    var timer = null, loading = false, lastKey = "", highlight = null;
+
+    function fmtDur(ms) {
+      var s = Math.round(ms / 1000);
+      return Math.floor(s / 60) + ":" + (s % 60 < 10 ? "0" : "") + (s % 60);
+    }
+
+    function render(d) {
+      var key = d.total + "|" + d.tracks.map(function (t) { return t.uri; }).join(",");
+      $("#spx-title").textContent = d.name;
+      $("#spx-owner").textContent = d.owner;
+      $("#spx-count").textContent = d.total === 1 ? "1 canción" : d.total + " canciones";
+      ["#spx-logo", "#spx-open", "#spx-play"].forEach(function (s) { $(s).href = d.url; });
+      var cover = $("#spx-cover");
+      if (d.image && cover.getAttribute("src") !== d.image) cover.src = d.image;
+      box.hidden = false;
+      if (key === lastKey && !highlight) return; // nada nuevo: no redibujar
+      lastKey = key;
+
+      listEl.innerHTML = "";
+      if (!d.tracks.length) {
+        listEl.appendChild(el("li", "spx__empty", "Aún no hay canciones. ¡Sé el primero en agregar una!"));
+        return;
+      }
+      d.tracks.forEach(function (t, i) {
+        var li = el("li", "spx__row" + (highlight === t.uri ? " is-new" : ""));
+        var a = el("a", "spx__link");
+        a.href = "https://open.spotify.com/track/" + t.id;
+        a.target = "_blank"; a.rel = "noopener";
+        a.appendChild(el("span", "spx__num", String(d.total - i)));
+        var img = el("img", "spx__thumb");
+        img.alt = ""; img.loading = "lazy"; img.width = 40; img.height = 40;
+        if (t.image) img.src = t.image;
+        a.appendChild(img);
+        var info = el("span", "spx__info");
+        var name = el("span", "spx__name", t.name);
+        info.appendChild(name);
+        var art = el("span", "spx__artist");
+        if (t.explicit) art.appendChild(el("span", "spx__e", "E"));
+        art.appendChild(document.createTextNode(t.artists));
+        info.appendChild(art);
+        a.appendChild(info);
+        a.appendChild(el("span", "spx__dur", fmtDur(t.duration)));
+        li.appendChild(a);
+        listEl.appendChild(li);
+      });
+      if (highlight) {
+        listEl.scrollTop = 0;
+        highlight = null;
+      }
+    }
+
+    function load() {
+      if (loading) return;
+      loading = true;
+      api("song", { action: "list" }).then(render).catch(function () {
+        /* si falla, se conserva lo último que se mostró */
+      }).then(function () { loading = false; });
+    }
+
+    function schedule() {
+      clearInterval(timer);
+      timer = document.hidden ? null : setInterval(load, REFRESH_MS);
+    }
+
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) load();
+      schedule();
+    });
+    document.addEventListener("playlist:changed", function (ev) {
+      highlight = ev.detail && ev.detail.uri;
+      loading = false;
+      load();
+    });
+
+    load();
+    schedule();
   })();
 
   /* ---------------- RSVP ---------------- */

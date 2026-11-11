@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# iCalendar requiere CRLF
+*.ics text eol=crlf

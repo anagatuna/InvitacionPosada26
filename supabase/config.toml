@@ -1,0 +1,10 @@
+# Configuración mínima para desplegar las Edge Functions.
+# Las funciones son públicas (sin JWT) porque el frontend no lleva llaves;
+# la protección es CORS + límite por IP + honeypot.
+project_id = "gsweoumtsptsiiktdppj"
+
+[functions.rsvp]
+verify_jwt = false
+
+[functions.song]
+verify_jwt = false

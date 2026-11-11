@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "invitacion",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5517", "--bind", "127.0.0.1"],
+      "port": 5517,
+      "autoPort": false
+    }
+  ]
+}

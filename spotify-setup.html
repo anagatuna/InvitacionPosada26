@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="referrer" content="no-referrer">
+  <title>Configurar Spotify</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: #041a14; --card: #0a3a2c; --gold: #c9a24a; --gold2: #ecd79a; --text: #efe6d2; --muted: #b9ad94; --err: #f0a58f; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 300 1rem/1.6 Inter, system-ui, sans-serif; padding: 32px 16px 64px; overflow-x: hidden; }
+    main { max-width: 640px; margin: 0 auto; }
+    h1 { font-family: "Playfair Display", Georgia, serif; color: var(--gold2); font-size: 2rem; margin: 0 0 .5rem; }
+    h2 { font-family: "Playfair Display", Georgia, serif; color: var(--gold2); font-size: 1.2rem; margin: 0 0 .6rem; }
+    .card { background: var(--card); border: 1px solid rgba(201,162,74,.4); border-radius: 12px; padding: 20px; margin: 18px 0; }
+    label { display: block; font-size: .75rem; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin: 12px 0 6px; font-weight: 500; }
+    input, textarea { width: 100%; min-height: 46px; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(201,162,74,.4); background: #041a14; color: var(--text); font: 400 .95rem Inter, sans-serif; }
+    textarea { min-height: 110px; font-family: ui-monospace, Consolas, monospace; font-size: .82rem; word-break: break-all; }
+    button { margin-top: 16px; min-height: 46px; padding: 0 22px; border-radius: 999px; border: 0; background: var(--gold); color: #041a14; font: 600 .8rem Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+    button.secondary { background: transparent; color: var(--gold2); border: 1px solid var(--gold); }
+    code { background: #041a14; padding: 2px 6px; border-radius: 4px; color: var(--gold2); font-size: .85em; word-break: break-all; }
+    ol { padding-left: 1.2rem; }
+    .muted { color: var(--muted); font-size: .9rem; }
+    .err { color: var(--err); }
+    .ok { color: var(--gold2); }
+    pre { white-space: pre-wrap; word-break: break-all; background: #041a14; padding: 12px; border-radius: 8px; font-size: .78rem; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Configurar Spotify</h1>
+  <p class="muted">Úsala <strong>una sola vez</strong> para obtener el <code>SPOTIFY_REFRESH_TOKEN</code>. Nada se guarda ni se envía a otro servidor que no sea <code>accounts.spotify.com</code>; el Client Secret solo vive en esta pestaña (sessionStorage) y se borra al terminar.</p>
+
+  <section class="card">
+    <h2>Antes de empezar</h2>
+    <ol class="muted">
+      <li>En <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener" style="color:var(--gold2)">developer.spotify.com/dashboard</a> abre tu app.</li>
+      <li>En <em>Redirect URIs</em> agrega exactamente:<br><code id="redir"></code></li>
+      <li>Inicia sesión con la cuenta de Spotify <strong>dueña de la playlist</strong>.</li>
+    </ol>
+  </section>
+
+  <section class="card" id="step1">
+    <h2>1 · Autorizar</h2>
+    <form id="auth-form" autocomplete="off">
+      <label for="cid">Client ID</label>
+      <input id="cid" required spellcheck="false">
+      <label for="csec">Client Secret</label>
+      <input id="csec" type="password" required spellcheck="false">
+      <button type="submit">Autorizar con Spotify</button>
+    </form>
+  </section>
+
+  <section class="card" id="step2" hidden>
+    <h2>2 · Tu refresh token</h2>
+    <p id="status" class="muted">Procesando…</p>
+    <div id="result" hidden>
+      <label for="rt">SPOTIFY_REFRESH_TOKEN</label>
+      <textarea id="rt" readonly></textarea>
+      <button type="button" id="copy">Copiar</button>
+      <p class="muted" style="margin-top:14px">Pégalo en Supabase → <em>Edge Functions → Secrets</em> como <code>SPOTIFY_REFRESH_TOKEN</code>. Después cierra esta pestaña.</p>
+    </div>
+    <div id="manual" hidden>
+      <p class="muted">Si el navegador bloqueó el intercambio, ejecútalo en tu terminal (sustituye TU_CLIENT_ID y TU_CLIENT_SECRET):</p>
+      <pre id="curl"></pre>
+    </div>
+    <button type="button" class="secondary" id="restart">Empezar de nuevo</button>
+  </section>
+</main>
+<script>
+(function () {
+  "use strict";
+  var REDIRECT = location.origin + location.pathname;
+  var SCOPES = "playlist-modify-public playlist-modify-private playlist-read-private";
+  var $ = function (id) { return document.getElementById(id); };
+  $("redir").textContent = REDIRECT;
+
+  function store(k, v) { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch (e) {} }
+  function read(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
+  function clear() { ["sp_cid", "sp_csec", "sp_state"].forEach(function (k) { store(k, null); }); }
+
+  $("auth-form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var cid = $("cid").value.trim(), csec = $("csec").value.trim();
+    if (!cid || !csec) return;
+    var state = Array.from(crypto.getRandomValues(new Uint8Array(16)), function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+    store("sp_cid", cid); store("sp_csec", csec); store("sp_state", state);
+    var q = new URLSearchParams({ response_type: "code", client_id: cid, scope: SCOPES, redirect_uri: REDIRECT, state: state, show_dialog: "true" });
+    location.href = "https://accounts.spotify.com/authorize?" + q.toString();
+  });
+
+  $("restart").addEventListener("click", function () { clear(); location.replace(REDIRECT); });
+  $("copy").addEventListener("click", function () {
+    var t = $("rt"); t.select();
+    (navigator.clipboard ? navigator.clipboard.writeText(t.value) : Promise.reject()).then(
+      function () { $("copy").textContent = "Copiado ✓"; },
+      function () { document.execCommand("copy"); $("copy").textContent = "Copiado ✓"; });
+  });
+
+  var params = new URLSearchParams(location.search);
+  if (!params.has("code") && !params.has("error")) return;
+
+  $("step1").hidden = true; $("step2").hidden = false;
+  history.replaceState(null, "", REDIRECT); // quita el code de la URL
+  var status = $("status");
+
+  if (params.get("error")) { status.className = "err"; status.textContent = "Spotify devolvió: " + params.get("error"); clear(); return; }
+  if (params.get("state") !== read("sp_state")) { status.className = "err"; status.textContent = "El parámetro state no coincide. Empieza de nuevo."; clear(); return; }
+
+  var code = params.get("code");
+  var cid = read("sp_cid"), csec = read("sp_csec");
+  var body = new URLSearchParams({ grant_type: "authorization_code", code: code, redirect_uri: REDIRECT, client_id: cid, client_secret: csec });
+
+  fetch("https://accounts.spotify.com/api/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: body.toString() })
+    .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error_description || d.error || r.status); return d; }); })
+    .then(function (d) {
+      if (!d.refresh_token) throw new Error("La respuesta no incluyó refresh_token");
+      status.className = "ok"; status.textContent = "¡Listo! Autorización correcta.";
+      $("rt").value = d.refresh_token; $("result").hidden = false;
+    })
+    .catch(function (e) {
+      status.className = "err"; status.textContent = "No se pudo intercambiar el código: " + e.message + ". El código expira en ~10 min.";
+      $("curl").textContent =
+        'curl -X POST https://accounts.spotify.com/api/token \\\n' +
+        '  -u "TU_CLIENT_ID:TU_CLIENT_SECRET" \\\n' +
+        '  -d grant_type=authorization_code \\\n' +
+        '  -d code=' + code + ' \\\n' +
+        '  --data-urlencode redirect_uri=' + REDIRECT;
+      $("manual").hidden = false;
+    })
+    .then(clear);
+})();
+</script>
+</body>
+</html>

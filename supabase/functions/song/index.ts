@@ -15,10 +15,11 @@ const TRACK_URI = /^spotify:track:[A-Za-z0-9]{22}$/;
 let cachedToken: { value: string; exp: number } | null = null;
 
 function env() {
-  const id = Deno.env.get("SPOTIFY_CLIENT_ID");
-  const secret = Deno.env.get("SPOTIFY_CLIENT_SECRET");
-  const refresh = Deno.env.get("SPOTIFY_REFRESH_TOKEN");
-  const playlist = Deno.env.get("SPOTIFY_PLAYLIST_ID");
+  const id = Deno.env.get("SPOTIFY_CLIENT_ID")?.trim();
+  const secret = Deno.env.get("SPOTIFY_CLIENT_SECRET")?.trim();
+  const refresh = Deno.env.get("SPOTIFY_REFRESH_TOKEN")?.trim();
+  // Acepta el ID o el link completo de la playlist
+  const playlist = Deno.env.get("SPOTIFY_PLAYLIST_ID")?.trim().replace(/^.*playlist[/:]/, "").replace(/\?.*$/, "");
   return id && secret && refresh && playlist ? { id, secret, refresh, playlist } : null;
 }
 
@@ -33,7 +34,7 @@ async function accessToken(cfg: NonNullable<ReturnType<typeof env>>): Promise<st
     body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: cfg.refresh }),
   });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok || !d.access_token) throw new Error(`token ${r.status} ${JSON.stringify(d)}`);
+  if (!r.ok || !d.access_token) throw new Error(`token:${r.status}:${d.error ?? "?"}:${d.error_description ?? ""}`);
   cachedToken = { value: d.access_token, exp: Date.now() + (d.expires_in ?? 3600) * 1000 };
   return cachedToken.value;
 }
@@ -108,7 +109,8 @@ Deno.serve(async (req) => {
       const params = new URLSearchParams({ q, type: "track", limit: "8", market: "MX" });
       const r = await sp(cfg, `/search?${params}`);
       if (!r.ok) {
-        console.error("search", r.status, await r.text());
+        const t = await r.text();
+        console.error("search", r.status, t);
         return json(req, 502, { error: "Spotify no respondió." });
       }
       const d = await r.json();

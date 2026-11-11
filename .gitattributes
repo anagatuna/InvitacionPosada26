@@ -2,4 +2,4 @@
 * text=auto
 
 # iCalendar requiere CRLF
-*.ics text eol=crlf
+*.ics -text

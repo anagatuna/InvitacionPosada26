@@ -1,6 +1,6 @@
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Posada Navidena 2026//Invitacion//ES
+PRODID:-//Posada Desarrollo 2026//Invitacion//ES
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
 BEGIN:VEVENT
@@ -8,13 +8,13 @@ UID:posada-navidena-2026@anagatuna.github.io
 DTSTAMP:20261111T000000Z
 DTSTART:20261220T000000Z
 DTEND:20261220T070000Z
-SUMMARY:Posada Navideña 2026
+SUMMARY:Posada Desarrollo 2026
 DESCRIPTION:Dress code: Fancy / Elegante.\nInvitación: https://anagatuna.github.io/InvitacionPosada26/
 LOCATION:Paseo Murazano 3577\, Lomas del Paseo Residencial Sector II
 URL:https://maps.app.goo.gl/GyfLFKH36MazwqAb8
 BEGIN:VALARM
 ACTION:DISPLAY
-DESCRIPTION:Posada Navideña 2026
+DESCRIPTION:Posada Desarrollo 2026
 TRIGGER:-PT3H
 END:VALARM
 END:VEVENT

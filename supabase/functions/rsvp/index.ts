@@ -9,7 +9,7 @@
 import { clientIp, esc, guard, json, rateLimit, readJson, str } from "../_shared/http.ts";
 
 const EVENTO = {
-  nombre: "Posada Navideña 2026",
+  nombre: "Posada Desarrollo 2026",
   fecha: "Sábado 19 de diciembre de 2026",
   hora: "6:00 PM – 1:00 AM",
   lugar: "Paseo Murazano 3577",

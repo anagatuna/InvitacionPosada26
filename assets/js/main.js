@@ -1,5 +1,5 @@
 /* =========================================================
-   Posada Navideña 2026 — lógica de la invitación
+   Posada Desarrollo 2026 — lógica de la invitación
    Sin llaves: el frontend solo llama a Supabase Edge Functions
    públicas (sin JWT). Los secretos viven en Supabase.
    ========================================================= */
@@ -11,7 +11,7 @@
     // 19 dic 2026, 18:00 – 20 dic 2026, 01:00 (America/Monterrey, UTC-6)
     inicio: new Date("2026-12-19T18:00:00-06:00"),
     fin: new Date("2026-12-20T01:00:00-06:00"),
-    titulo: "Posada Navideña 2026",
+    titulo: "Posada Desarrollo 2026",
     lugar: "Paseo Murazano 3577, Lomas del Paseo Residencial Sector II",
     mapa: "https://maps.app.goo.gl/GyfLFKH36MazwqAb8",
     invitacion: "https://anagatuna.github.io/InvitacionPosada26/"
